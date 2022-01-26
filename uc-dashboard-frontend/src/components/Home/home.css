@@ -1,0 +1,12 @@
+.header-wrapper {grid-area: header;}
+.body-wrapper {grid-area: body;}
+
+.main-content-wrapper {
+  display:grid;
+  grid: "header"
+        "body";
+  grid-template-rows: auto auto;
+  text-align: center;
+  align-content: center;
+}
+
