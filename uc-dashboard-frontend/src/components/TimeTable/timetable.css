@@ -1,0 +1,10 @@
+#calendar-menu{
+    display: flex;
+    justify-content: left;
+    margin-left: 5%;
+    margin: 1%;
+}
+
+.menu-button{
+    margin: 0 3% 0 3%;
+}

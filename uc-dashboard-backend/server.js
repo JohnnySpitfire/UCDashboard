@@ -30,8 +30,14 @@ const getTimetable = new Promise ((resolve) => {
     xhr.send();
 })
 
-getTimetable.then((cal) =>{
-    console.log(cal);
+app.listen(3000, () => {
+    getTimetable.then((cal) =>{
+        console.log(cal);
+    })
+})
+
+app.get('/usertimetable', (req, res) =>{
+    getTimetable.then(cal => res.json(cal)).catch(err => res.statusCode(500).res.json(err))
 })
 
 // client.connect(async err => {
