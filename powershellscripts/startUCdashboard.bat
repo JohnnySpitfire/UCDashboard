@@ -13,7 +13,7 @@ ECHO 3 - Stop All
 ECHO 4 - Exit
 ECHO.
 
-SET /P M=Type 1, 2, 3, 4 or 5 then press ENTER:
+SET /P M=Type 1, 2, 3, or 4 then press ENTER:
 IF %M%==1 GOTO STARTSERVER
 IF %M%==2 GOTO RESTARTSERVER
 IF %M%==3 GOTO STOPALL

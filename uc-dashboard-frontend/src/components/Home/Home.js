@@ -14,11 +14,10 @@ const handleLogOut = (instance, accounts, navigate) => {
     navigate('/');
 }
 
-
 const LogOutButton = () =>{
     const { instance, accounts } = useMsal();
     const navigate = useNavigate();
-
+    
     return(
         <Button variant="contained" onClick={() => handleLogOut(instance, accounts, navigate)}>LogOut</Button>
     )
@@ -27,6 +26,7 @@ const LogOutButton = () =>{
 class Home extends React.Component{
     
     render(){
+
         return (
             <div className="main-content-wrapper">
                 <div className="header-wrapper">

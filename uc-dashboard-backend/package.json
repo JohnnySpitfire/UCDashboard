@@ -9,10 +9,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@azure/cosmos": "^3.15.1",
     "axios": "^0.25.0",
     "body-parser": "^1.19.1",
     "cors": "^2.8.5",
     "express": "^4.17.2",
+    "l": "^0.6.0",
     "moment-timezone": "^0.5.34",
     "mongodb": "^4.3.1",
     "node-fetch": "^2.6.7",
