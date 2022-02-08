@@ -15,7 +15,7 @@ function ClassColorPicker(props){
 
   const handleCloseOK = (value) => {
     setOpen(false);
-    setColor(props.calendar.classCode, value);
+    setColor(props.calendarColors.id, value);
   };
 
   const handleCloseCancel = () => {
@@ -24,8 +24,8 @@ function ClassColorPicker(props){
 
   return(
       <React.Fragment>
-        <Button variant="contained" color="secondary" onClick={handleClickOpen}>{props.calendar.classCode}</Button>
-        <ColorDialog onCloseOK={handleCloseOK} onCloseCancel={handleCloseCancel} open={open} classColor={props.calendar.bgColor}/>
+        <Button variant="contained" color="secondary" onClick={handleClickOpen}>{props.calendarColors.id}</Button>
+        <ColorDialog onCloseOK={handleCloseOK} onCloseCancel={handleCloseCancel} open={open} classColor={props.calendarColors.color}/>
       </React.Fragment>
   )
 }
@@ -34,11 +34,12 @@ class Timetable extends React.Component{
 
   calendarRef = React.createRef();
 
-    constructor(){
+    constructor(props){
         super();
         this.state = {
             timetable: [],
             calendars: [],
+            calendarColors: [],
         }
     }
 
@@ -80,9 +81,9 @@ class Timetable extends React.Component{
       }
     }
 
-    findClassColor(classCode, classColors){
-      const classObj = classColors.find((subject) => {
-        return subject.classCode === classCode;
+    findClassColor(classCode){
+      const classObj = this.state.calendarColors.find((subject) => {
+        return subject.id === classCode;
       })
       if(classObj === undefined){
         return '#808080'
@@ -91,53 +92,80 @@ class Timetable extends React.Component{
       }
     }
 
-    getTimetable(){
-        let timetable = []
-        let calendars = []
+    getTimetable = async (isNewUser) => {
+        let timetable = [];
+        let calendars = [];
+        let calendarColors = [];
 
-        fetch('http://localhost:3000/userdata', {
-          method: 'GET',
-          headers: {'Content-Type': 'application/json'}
-        })
-        .then(res => res.json())
-        .then(classColors => {
-        fetch('http://localhost:3000/usertimetable', {
-            method: 'GET',
-            headers: {'Content-Type': 'application/json'}
-        }).then(res => res.json())
-          .then(data => {
-            let lastEventCourse = '';
-            let calId = -1;
-            for(let key in data){
-                const id = data[key].uid.replace('uid','');
+        await fetch('http://localhost:3000/usertimetable', {
+              method: 'GET',
+              headers: {'Content-Type': 'application/json'}
+          }).then(res => res.json())
+            .then(data => {
+              let lastEventCourse = '';
+              let calId = -1;
+              for (let key in data) {
+                const id = data[key].uid.replace('uid', '');
                 const classCode = data[key].description.slice(0, data[key].description.indexOf('-'));
                 const classTitle = this.getClassTitle(data[key].summary);
-                const calendarName =  classCode + ' | ' + classTitle;
+                const calendarName = classCode + ' | ' + classTitle;
                 const activity = this.getActivityType(data[key].summary.slice(data[key].summary.lastIndexOf(',') + 2, data[key].summary.length - 1));
-                if(classCode !== lastEventCourse){calId++}
+                if (classCode !== lastEventCourse) { calId++; }
                 timetable.push({
-                    id,
-                    calendarId: calId.toString(),
-                    title: activity,
-                    location: data[key].location,
-                    category: 'time',
-                    start: data[key].start,
-                    end: data[key].end,
-                    isReadOnly: true
-                })
-                if(classCode !== lastEventCourse){
-                  const color = this.findClassColor(classCode, classColors);
+                  id,
+                  calendarId: calId.toString(),
+                  title: activity,
+                  location: data[key].location,
+                  category: 'time',
+                  start: data[key].start,
+                  end: data[key].end,
+                  isReadOnly: true
+                });
+                if (classCode !== lastEventCourse) {
+                  let color = '#00aaff'
+                  if(!isNewUser){
+                    color = this.findClassColor(classCode)
+                  }
                   calendars.push({
-                    id: calId.toString(), 
+                    id: calId.toString(),
                     name: calendarName,
                     classCode,
                     bgColor: color,
                     borderColor: color
+                  });
+
+                  calendarColors.push({
+                    id: classCode,
+                    color: color
                   })
                   lastEventCourse = classCode;
                 }
-            }
-            this.setState({timetable, calendars});
+              }
+              console.log(calendarColors);
+              this.setState({ timetable, calendars, calendarColors });
+          })
+          return calendarColors;
+    }
+
+    getUser(){      
+      console.log(this.props.tenantId)
+      fetch('http://localhost:3000/queryuserdata', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*'},
+        body: JSON.stringify({id: this.props.tenantId})
+      })
+      .then(res => {
+        const queryResponse = res;
+        this.getTimetable(false).then(calendarColors => {
+          if(queryResponse.status === 404) {
+            fetch('http://localhost:3000/createuser', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'},
+              body:  JSON.stringify({id: this.props.tenantId, calendarColors: calendarColors})
+            })
+          }
         })
       })
     }
@@ -175,24 +203,31 @@ class Timetable extends React.Component{
     };
 
     setColor = (classCode, color) => {
-      console.log(classCode, color);
-      const calendars = this.state.calendars.map((calendar) => {
-        if (calendar.classCode === classCode){
-          return {...calendar, bgColor: color, borderColor: color}
+      const calendarColors = this.state.calendarColors.map((calendarColor) => {
+        if (calendarColor.id === classCode){
+          return {...calendarColor, color: color}
         } else {
-          return calendar
+          return calendarColor
         }
       })
-      this.setState({calendars})
+      console.log('ass', calendarColors);
+      this.setState({calendarColors})
+      fetch('http://localhost:3000/updateuser', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*'},
+        body : JSON.stringify({id: this.props.tenantId, calendars: calendarColors})
+      }).then(res => res.json())
     }
 
     componentDidMount(){
-        this.getTimetable();
+        this.getUser();
     }
     
     render(){
-        const {timetable, calendars} = this.state
+        const {timetable, calendars, calendarColors} = this.state
         console.log(this.state);
+        console.log(this.props);
         return (
             <React.Fragment>
               <div id='calendar-menu'>
@@ -205,10 +240,10 @@ class Timetable extends React.Component{
                 <div id='calendar-color-controls'>
                   <h3>Customize Class Colors</h3>
                   <div className='calendar-color-button-wrapper'>
-                    {calendars.map((calendar, i) => {
+                    {calendarColors.map((calendar, i) => {
                       return (
                           <div key={i} className="calendar-color-button">
-                            <ClassColorPicker setColor={this.setColor} calendar={calendar} />
+                            <ClassColorPicker setColor={this.setColor} calendarColors={calendar} />
                           </div>
                         )
                     })}

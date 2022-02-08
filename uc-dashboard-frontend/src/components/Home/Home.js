@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect, useState} from "react";
 import Timetable from "../TimeTable/TimeTable";
 import './home.css';
 import EmailInbox from "../EmailInbox/EmailInbox";
@@ -23,23 +23,40 @@ const LogOutButton = () =>{
     )
 }
 
-class Home extends React.Component{
-    
-    render(){
+function Home(){
+    const [tenantId, setTenantId] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const {accounts} = useMsal();
 
+    useEffect(() => {
+        const asyncSetTenantId = async () =>{
+            await setTenantId(accounts[0].tenantId)
+        }
+        asyncSetTenantId().then(() => {
+            setIsLoading(false)
+        });
+    },[accounts])
+
+    while(isLoading){
         return (
-            <div className="main-content-wrapper">
-                <div className="header-wrapper">
-                    <h1>header</h1>
-                    <LogOutButton/>
+                <div>
+                    <h1>Loading! :3</h1>
                 </div>
-                <div className="body-wrapper">
-                    <Timetable/>
-                    <EmailInbox/>
-                </div>
-            </div>
         )
     }
+
+    return (
+        <div className="main-content-wrapper">
+            <div className="header-wrapper">
+                <h1>header</h1>
+                <LogOutButton/>
+            </div>
+            <div className="body-wrapper">
+                <Timetable tenantId={tenantId}/>
+                <EmailInbox/>
+            </div>
+        </div>
+    )
 }
 
 export default Home;

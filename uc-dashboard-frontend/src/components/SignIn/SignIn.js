@@ -8,8 +8,8 @@ import Button from '@mui/material/Button';
 
 const handleLogin = (instance, navigate) => {
     instance.loginPopup(loginRequest).then(() =>  navigate('/Home'))
-    .catch(e => {
-        console.error(e);
+    .catch(err => {
+        console.error(err);
     });
 }
 

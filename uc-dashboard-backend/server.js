@@ -7,7 +7,7 @@ const CosmosClient = require('@azure/cosmos').CosmosClient
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const config = require('./config')
 const url = require('url');
-const { read } = require('fs');
+const { read, rmSync } = require('fs');
 
 const endpoint = config.endpoint
 const key = config.key
@@ -53,29 +53,54 @@ app.listen(3000, () => {
         console.log(cal);
     })
 
-    readDatabase()
-    .then(() => {
-        readContainer()
-    .then(() => {
-        queryContainer()
-    })
-     .then(() => {
-        exit(`Completed successfully`)
-    })
-})
-    .catch(error => {
-        exit(`Completed with error ${JSON.stringify(error)}`)
-    })
+//     readDatabase()
+//     .then(() => {
+//         readContainer()
+//     .then(() => {
+//         queryContainer()
+//     })
+//      .then(() => {
+//         exit(`Completed successfully`)
+//     })
+// })
+//     .catch(error => {
+//         exit(`Completed with error ${JSON.stringify(error)}`)
+//     })
 
 });
 
 app.get('/usertimetable', (req, res) =>{
-    getTimetable.then(cal => res.json(cal)).catch(err => res.statusCode(500).res.json(err))
+    getTimetable.then(cal => res.json(cal)).catch(err => res.status(500).json(err))
 })
 
-app.get('/userdata' , (req, res) => {
-    queryContainer().then(data => res.json(data)).catch(err => res.statusCode(500).res.json(err))
+app.post('/queryuserdata' , (req, res) => {
+  queryUsersCollection(req.body).then(data => {
+    if(data === undefined){
+      console.log('dick', data);
+      res.status(404).json(data);
+    } else {
+      console.log('ass', data);
+      res.json(data);
+    }
+  })
+  .catch(err => res.status(500).json(err))
 })
+
+app.post('/createuser' , (req, res) => {
+  createUserItem(req.body).then(() => res.status(200).json('completed successfully'))
+  .catch(err => {
+    res.status(500).json(err)
+    console.log('ass', err);
+  })
+})
+
+app.post('/updateuser', (req, res) => {
+  replaceUserItem(req.body).then((data) => res.status(200).json('completed successfully'))
+  .catch(err =>{
+    res.status(500).json(err)
+  })
+})
+
 
 /**
  * Create the database if it does not exist
@@ -164,28 +189,30 @@ async function scaleContainer() {
 /**
  * Create family item if it does not exist
  */
-async function createFamilyItem(itemBody) {
+async function createUserItem(itemBody) {
+  console.log(itemBody);
   const { item } = await client
     .database(databaseId)
     .container(containerId)
     .items.upsert(itemBody)
-  console.log(`Created family item with id:\n${itemBody.id}\n`)
+  console.log(`Created family item with id:\n${itemBody}\n`);
 }
 
 /**
  * Query the container using SQL
  */
-async function queryContainer() {
+async function queryUsersCollection(reqbody) {
   console.log(`Querying container:\n${config.container.id}`)
+  console.log('id:', reqbody.id);
 
   // query to return all children in a family
   // Including the partition key value of country in the WHERE filter results in a more efficient query
   const querySpec = {
-    query: 'SELECT VALUE u FROM users u WHERE u.tid = @tid',
+    query: 'SELECT VALUE u FROM users u WHERE u.id = @id',
     parameters: [
       {
-        name: '@tid',
-        value: '9188040d-6c67-4c5b-b112-36a304b66dad'
+        name: '@id',
+        value: reqbody.id
       }
     ]
   }
@@ -198,21 +225,19 @@ async function queryContainer() {
   for (var queryResult of results) {
     let resultString = JSON.stringify(queryResult)
     console.log(`Query returned \n${resultString}\n`)
-    return queryResult.classes;
+    return queryResult;
   }
 }
 
 /**
  * Replace the item by ID.
  */
-async function replaceFamilyItem(itemBody) {
+async function replaceUserItem(itemBody) {
   console.log(`Replacing item:\n${itemBody.id}\n`)
-  // Change property 'grade'
-  itemBody.children[0].grade = 6
   const { item } = await client
     .database(databaseId)
     .container(containerId)
-    .item(itemBody.id, itemBody.partitionKey)
+    .item(itemBody.id, itemBody.calendar)
     .replace(itemBody)
 }
 
