@@ -1,9 +1,35 @@
 import React from 'react';
 import './timetable.css'
 import Calendar from '@toast-ui/react-calendar';
+import moment from 'moment';
 import 'tui-calendar/dist/tui-calendar.css';
 import Button from '@mui/material/Button';
 import ColorDialog from '../ColorDialog/ColorDialog'
+
+function formatEventTitle(schedule, isAllDay) {
+  var html = [];
+  var start = moment(schedule.start.toUTCString());
+  if (!isAllDay) {
+      html.push('<strong>' + start.format('HH:mm') + '</strong> ');
+  }
+  if (schedule.isPrivate) {
+      html.push('<span class="calendar-font-icon ic-lock-b"></span>');
+      html.push(' Private');
+  } else {
+      if (schedule.isReadOnly) {
+          html.push('<span class="calendar-font-icon ic-readonly-b"></span>');
+      } else if (schedule.recurrenceRule) {
+          html.push('<span class="calendar-font-icon ic-repeat-b"></span>');
+      } else if (schedule.attendees.length) {
+          html.push('<span class="calendar-font-icon ic-user-b"></span>');
+      } else if (schedule.location) {
+          html.push('<span class="calendar-font-icon ic-location-b"></span>');
+      }
+      html.push(` | ${schedule.title}`);
+  }
+
+  return html.join('');
+}
 
 function ClassColorPicker(props){
   const [open, setOpen] = React.useState(false);
@@ -40,9 +66,11 @@ class Timetable extends React.Component{
             timetable: [],
             calendars: [],
             calendarColors: [],
+            calendarView: 'week'
         }
     }
 
+    //redundant
     getRandomColor(){
       const colorChars = '0123456789ABCDEF';
       let colorCode = '#'
@@ -81,18 +109,36 @@ class Timetable extends React.Component{
       }
     }
 
-    findClassColor(classCode){
-      const classObj = this.state.calendarColors.find((subject) => {
+    findClassColor(classCode, userCalendarColors){
+      const classObj = userCalendarColors.find((subject) => {
         return subject.id === classCode;
       })
       if(classObj === undefined){
-        return '#808080'
+        return '#00aaff'
       } else {
         return classObj.color
       }
     }
 
-    getTimetable = async (isNewUser) => {
+    getTextColor(bgColor){
+      const hexToRgb = (bgColor) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(bgColor);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : null;
+      }
+      const rgbColor = hexToRgb(bgColor);
+      
+      if ((rgbColor.r*0.299 + rgbColor.g*0.587 + rgbColor.b*0.114) > 186){
+        return '#000000';
+      } else {
+        return '#ffffff';
+      } 
+    }
+
+    getTimetable = async (isNewUser, userCalendarColors) => {
         let timetable = [];
         let calendars = [];
         let calendarColors = [];
@@ -108,13 +154,13 @@ class Timetable extends React.Component{
                 const id = data[key].uid.replace('uid', '');
                 const classCode = data[key].description.slice(0, data[key].description.indexOf('-'));
                 const classTitle = this.getClassTitle(data[key].summary);
-                const calendarName = classCode + ' | ' + classTitle;
+                const calendarName = `${classCode} | ${classTitle}`;
                 const activity = this.getActivityType(data[key].summary.slice(data[key].summary.lastIndexOf(',') + 2, data[key].summary.length - 1));
                 if (classCode !== lastEventCourse) { calId++; }
                 timetable.push({
                   id,
                   calendarId: calId.toString(),
-                  title: activity,
+                  title: `${activity} | ${classCode}`,
                   location: data[key].location,
                   category: 'time',
                   start: data[key].start,
@@ -124,53 +170,58 @@ class Timetable extends React.Component{
                 if (classCode !== lastEventCourse) {
                   let color = '#00aaff'
                   if(!isNewUser){
-                    color = this.findClassColor(classCode)
+                    color = this.findClassColor(classCode, userCalendarColors);
+                  } else {
+                    calendarColors.push({
+                      id: classCode,
+                      color: color
+                    })
                   }
+                  const textColor = this.getTextColor(color);
                   calendars.push({
                     id: calId.toString(),
                     name: calendarName,
                     classCode,
+                    color: textColor,
                     bgColor: color,
                     borderColor: color
                   });
-
-                  calendarColors.push({
-                    id: classCode,
-                    color: color
-                  })
                   lastEventCourse = classCode;
                 }
               }
-              console.log(calendarColors);
-              this.setState({ timetable, calendars, calendarColors });
+              this.setState({ timetable, calendars });
           })
           return calendarColors;
     }
 
     getUser(){      
-      console.log(this.props.tenantId)
       fetch('http://localhost:3000/queryuserdata', {
         method: 'POST',
         headers: {'Content-Type': 'application/json',
                   'Access-Control-Allow-Origin': '*'},
         body: JSON.stringify({id: this.props.tenantId})
       })
-      .then(res => {
-        const queryResponse = res;
-        this.getTimetable(false).then(calendarColors => {
-          if(queryResponse.status === 404) {
+      .then(async res => {
+        const statusCode = res.status;
+        const userCalendarData = await res.json();
+          if(statusCode === 404) {  
+            this.getTimetable(true).then(userCalendarColors => {
             fetch('http://localhost:3000/createuser', {
               method: 'POST',
               headers: {'Content-Type': 'application/json',
                         'Access-Control-Allow-Origin': '*'},
-              body:  JSON.stringify({id: this.props.tenantId, calendarColors: calendarColors})
+              body:  JSON.stringify({id: this.props.tenantId, calendarColors: userCalendarColors})
             })
-          }
-        })
+            this.setState({calendarColors: userCalendarColors});
+          })
+        } else if(statusCode === 200){
+          this.getTimetable(false, userCalendarData.calendarColors);
+          this.setState({calendarColors: userCalendarData.calendarColors});
+        }
       })
     }
 
-     handleClickNextButton = () => {
+    handleClickNextButton = () => {
       const calendarInstance = this.calendarRef.current.getInstance();
       calendarInstance.next();
     };
@@ -191,33 +242,41 @@ class Timetable extends React.Component{
       const calendarInstance = this.calendarRef.current.getInstance();
       if(calendarInstance.getViewName() === 'week'){
         calendarInstance.changeView('month', true)
+        this.setState({calendarView: 'month'});
       } else {
         calendarInstance.changeView('week', true)
+        this.setState({calendarView: 'week'});
       }
-    };
+    }
 
-    handleClickOpen = () => {
-    };
-  
-    handleClose = (value) => {
-    };
-
-    setColor = (classCode, color) => {
+    setColor = (classCode, newColor) => {
       const calendarColors = this.state.calendarColors.map((calendarColor) => {
         if (calendarColor.id === classCode){
-          return {...calendarColor, color: color}
+          return {...calendarColor, color: newColor}
         } else {
           return calendarColor
         }
       })
-      console.log('ass', calendarColors);
-      this.setState({calendarColors})
+      this.updateCalendarColors(classCode, newColor);
+      this.setState({calendarColors});
       fetch('http://localhost:3000/updateuser', {
         method: 'POST',
         headers: {'Content-Type': 'application/json',
                   'Access-Control-Allow-Origin': '*'},
-        body : JSON.stringify({id: this.props.tenantId, calendars: calendarColors})
+        body : JSON.stringify({id: this.props.tenantId, calendarColors: calendarColors})
       }).then(res => res.json())
+    }
+
+    updateCalendarColors(classCode, newColor){
+      const newTextColor = this.getTextColor(newColor);
+      const newCalendar = this.state.calendars.map(subject => {
+        if(subject.classCode === classCode){
+          return {...subject, bgColor: newColor, borderColor: newColor, color: newTextColor};
+        } else {
+          return subject;
+        }
+      })
+      this.setState({calendars: newCalendar});
     }
 
     componentDidMount(){
@@ -225,15 +284,18 @@ class Timetable extends React.Component{
     }
     
     render(){
-        const {timetable, calendars, calendarColors} = this.state
+        const {timetable, calendars, calendarColors, calendarView} = this.state
         console.log(this.state);
         console.log(this.props);
         return (
             <React.Fragment>
               <div id='calendar-menu'>
                 <div id='calendar-controls'>
-                  <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickToggleButton}>ToggleCalendarMode</Button>
-                  <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickTodayButton}>Today</Button>
+                  <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickToggleButton}>Toggle Month and Week View</Button>
+                  {calendarView === 'week' ? 
+                    <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickTodayButton}>Today</Button>:
+                    <Button disabled className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickTodayButton}>Today</Button>
+                  }
                   <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickPrevButton}>Prev</Button>
                   <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickNextButton}>Next</Button>
                 </div>
@@ -271,7 +333,11 @@ class Timetable extends React.Component{
               scheduleView={true}
               taskView={false}
               useDetailPopup={true}
-              // template={}
+              template={{
+                time: function(schedule) {
+                  return formatEventTitle(schedule, false);
+                }
+              }}
               timezones={[
                 {
                   timezoneOffset: +780,

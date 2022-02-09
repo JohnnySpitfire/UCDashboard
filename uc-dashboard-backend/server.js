@@ -76,8 +76,8 @@ app.get('/usertimetable', (req, res) =>{
 app.post('/queryuserdata' , (req, res) => {
   queryUsersCollection(req.body).then(data => {
     if(data === undefined){
-      console.log('dick', data);
-      res.status(404).json(data);
+      console.log('No users found');
+      res.status(404).json({});
     } else {
       console.log('ass', data);
       res.json(data);
@@ -237,7 +237,7 @@ async function replaceUserItem(itemBody) {
   const { item } = await client
     .database(databaseId)
     .container(containerId)
-    .item(itemBody.id, itemBody.calendar)
+    .item(itemBody.id)
     .replace(itemBody)
 }
 

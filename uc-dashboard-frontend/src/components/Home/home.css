@@ -10,3 +10,9 @@
   align-content: center;
 }
 
+.header-wrapper {
+  display:flex;
+  justify-content:space-between;
+  margin: 1%;
+}
+
