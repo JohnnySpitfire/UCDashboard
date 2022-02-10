@@ -1,17 +1,23 @@
 #calendar-menu{
     display: flex;
     justify-content: space-between;
+    padding: 0 1%;
 }
 
 #calendar-controls{
     display: flex;
-    margin: 2% 1%;
-
+    align-items: end;
+    padding-bottom: 1%;
 }
 
 #calendar-color-controls{
     display: grid;
     margin: 1%;
+    align-items: center;
+}
+
+#calendar-wrapper{
+    padding: 0 1%;
 }
 
 .calendar-color-button{
@@ -20,4 +26,8 @@
 
 .calendar-color-button-wrapper{
     display: flex;
+}
+
+.menu-button{
+    border-right: 1px solid #000000
 }

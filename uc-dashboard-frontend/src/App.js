@@ -25,6 +25,7 @@ class App extends React.Component {
           href="https://fonts.googleapis.com/icon?family=Material+Icons"
         />
         <Routes>
+          <Route path="/Home:timetableId" element={<Home/>}/>
           <Route path="/Home" element={<Home/>}/>
           <Route path="/" element={<SignIn/>}/>
         </Routes>

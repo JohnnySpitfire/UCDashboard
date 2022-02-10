@@ -4,6 +4,9 @@ import Calendar from '@toast-ui/react-calendar';
 import moment from 'moment';
 import 'tui-calendar/dist/tui-calendar.css';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ColorDialog from '../ColorDialog/ColorDialog'
 
 function formatEventTitle(schedule, isAllDay) {
@@ -31,6 +34,24 @@ function formatEventTitle(schedule, isAllDay) {
   return html.join('');
 }
 
+function getTextColor(bgColor){
+  const hexToRgb = (bgColor) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(bgColor);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+  const rgbColor = hexToRgb(bgColor);
+  
+  if ((rgbColor.r*0.299 + rgbColor.g*0.587 + rgbColor.b*0.114) > 186){
+    return '#000000';
+  } else {
+    return '#ffffff';
+  } 
+}
+
 function ClassColorPicker(props){
   const [open, setOpen] = React.useState(false);
   const {setColor} = props
@@ -50,7 +71,7 @@ function ClassColorPicker(props){
 
   return(
       <React.Fragment>
-        <Button variant="contained" color="secondary" onClick={handleClickOpen}>{props.calendarColors.id}</Button>
+        <Button variant="contained" sx={{color: getTextColor(props.calendarColors.color), backgroundColor: props.calendarColors.color}}  onClick={handleClickOpen}>{props.calendarColors.id}</Button>
         <ColorDialog onCloseOK={handleCloseOK} onCloseCancel={handleCloseCancel} open={open} classColor={props.calendarColors.color}/>
       </React.Fragment>
   )
@@ -66,7 +87,8 @@ class Timetable extends React.Component{
             timetable: [],
             calendars: [],
             calendarColors: [],
-            calendarView: 'week'
+            calendarView: 'week',
+            timetableId: ''
         }
     }
 
@@ -120,32 +142,15 @@ class Timetable extends React.Component{
       }
     }
 
-    getTextColor(bgColor){
-      const hexToRgb = (bgColor) => {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(bgColor);
-        return result ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16)
-        } : null;
-      }
-      const rgbColor = hexToRgb(bgColor);
-      
-      if ((rgbColor.r*0.299 + rgbColor.g*0.587 + rgbColor.b*0.114) > 186){
-        return '#000000';
-      } else {
-        return '#ffffff';
-      } 
-    }
-
-    getTimetable = async (isNewUser, userCalendarColors) => {
+    getTimetable = async (isNewUser, timetableId, userCalendarColors) => {
         let timetable = [];
         let calendars = [];
         let calendarColors = [];
 
         await fetch('http://localhost:3000/usertimetable', {
-              method: 'GET',
-              headers: {'Content-Type': 'application/json'}
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({timetableId: timetableId})
           }).then(res => res.json())
             .then(data => {
               let lastEventCourse = '';
@@ -177,7 +182,7 @@ class Timetable extends React.Component{
                       color: color
                     })
                   }
-                  const textColor = this.getTextColor(color);
+                  const textColor = getTextColor(color);
                   calendars.push({
                     id: calId.toString(),
                     name: calendarName,
@@ -204,19 +209,22 @@ class Timetable extends React.Component{
       .then(async res => {
         const statusCode = res.status;
         const userCalendarData = await res.json();
-          if(statusCode === 404) {  
-            this.getTimetable(true).then(userCalendarColors => {
+          if(statusCode === 404) {
+            const {timetableId} = this.props;
+            const timetableIdSlice = timetableId.slice(1, timetableId.length);
+            this.getTimetable(true, timetableIdSlice).then(userCalendarColors => {
             fetch('http://localhost:3000/createuser', {
               method: 'POST',
               headers: {'Content-Type': 'application/json',
                         'Access-Control-Allow-Origin': '*'},
-              body:  JSON.stringify({id: this.props.tenantId, calendarColors: userCalendarColors})
+              body:  JSON.stringify({id: this.props.tenantId, timetableId: timetableIdSlice, calendarColors: userCalendarColors})
             })
-            this.setState({calendarColors: userCalendarColors});
+            this.setState({calendarColors: userCalendarColors, timetableId: timetableIdSlice});
           })
         } else if(statusCode === 200){
-          this.getTimetable(false, userCalendarData.calendarColors);
-          this.setState({calendarColors: userCalendarData.calendarColors});
+          console.log(userCalendarData);
+          this.getTimetable(false, userCalendarData.timetableId, userCalendarData.calendarColors);
+          this.setState({calendarColors: userCalendarData.calendarColors, timetableId: userCalendarData.timetableId});
         }
       })
     }
@@ -263,12 +271,12 @@ class Timetable extends React.Component{
         method: 'POST',
         headers: {'Content-Type': 'application/json',
                   'Access-Control-Allow-Origin': '*'},
-        body : JSON.stringify({id: this.props.tenantId, calendarColors: calendarColors})
+        body : JSON.stringify({id: this.props.tenantId, timetableId: this.state.timetableId, calendarColors: calendarColors})
       }).then(res => res.json())
     }
 
     updateCalendarColors(classCode, newColor){
-      const newTextColor = this.getTextColor(newColor);
+      const newTextColor = getTextColor(newColor);
       const newCalendar = this.state.calendars.map(subject => {
         if(subject.classCode === classCode){
           return {...subject, bgColor: newColor, borderColor: newColor, color: newTextColor};
@@ -290,14 +298,18 @@ class Timetable extends React.Component{
         return (
             <React.Fragment>
               <div id='calendar-menu'>
-                <div id='calendar-controls'>
-                  <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickToggleButton}>Toggle Month and Week View</Button>
+                <div id="calendar-controls">
+                  <Button className='menu-button' variant='text' type='button' onClick={this.handleClickToggleButton}>Toggle View</Button>
                   {calendarView === 'week' ? 
-                    <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickTodayButton}>Today</Button>:
-                    <Button disabled className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickTodayButton}>Today</Button>
+                    <Button className='menu-button' variant='text' type='button' onClick={this.handleClickTodayButton}>Today</Button>:
+                    <Button disabled className='menu-button' variant='text' type='button' onClick={this.handleClickTodayButton}>Today</Button>
                   }
-                  <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickPrevButton}>Prev</Button>
-                  <Button className='menu-button' type='button' variant='contained' style={{margin: '0 0.5% 0 0.5%'}} onClick={this.handleClickNextButton}>Next</Button>
+                  <IconButton className='menu-button' variant='text' type='button' onClick={this.handleClickPrevButton}>
+                    <ArrowBackIcon color={'primary'}/>
+                  </IconButton>
+                  <IconButton className='menu-button' variant='text' type='button' onClick={this.handleClickNextButton}>
+                    <ArrowForwardIcon color={'primary'}/>
+                  </IconButton>
                 </div>
                 <div id='calendar-color-controls'>
                   <h3>Customize Class Colors</h3>
@@ -312,41 +324,43 @@ class Timetable extends React.Component{
                   </div>
                 </div>
               </div>
-              <Calendar 
-              calendars={calendars}
-              disableDblClick={false}
-              disableClick={false}
-              isReadOnly={true}
-              ref={this.calendarRef}
-              month={{
-                startDayOfWeek: 0,
-                workweek: true,
-              }}
-              week={{
-                workweek: true,
-                hourStart: 8,
-                hourEnd: 21
-              }}
-              schedules={
-                timetable
-              }
-              scheduleView={true}
-              taskView={false}
-              useDetailPopup={true}
-              template={{
-                time: function(schedule) {
-                  return formatEventTitle(schedule, false);
+              <div id='calendar-wrapper'>
+                <Calendar 
+                calendars={calendars}
+                disableDblClick={false}
+                disableClick={false}
+                isReadOnly={true}
+                ref={this.calendarRef}
+                month={{
+                  startDayOfWeek: 0,
+                  workweek: true,
+                }}
+                week={{
+                  workweek: true,
+                  hourStart: 8,
+                  hourEnd: 21
+                }}
+                schedules={
+                  timetable
                 }
-              }}
-              timezones={[
-                {
-                  timezoneOffset: +780,
-                  displayLabel: 'GMT-13:00',
-                  tooltip: 'New Zealand'
-                }
-              ]}
-              useCreationPopup
-              />
+                scheduleView={true}
+                taskView={false}
+                useDetailPopup={true}
+                template={{
+                  time: function(schedule) {
+                    return formatEventTitle(schedule, false);
+                  }
+                }}
+                timezones={[
+                  {
+                    timezoneOffset: +780,
+                    displayLabel: 'GMT-13:00',
+                    tooltip: 'New Zealand'
+                  }
+                ]}
+                useCreationPopup
+                />
+              </div>
             </React.Fragment>
         )   
     }

@@ -2,12 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const ical = require('node-ical');
-const { MongoClient } = require('mongodb');
 const CosmosClient = require('@azure/cosmos').CosmosClient
 const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 const config = require('./config')
-const url = require('url');
-const { read, rmSync } = require('fs');
 
 const endpoint = config.endpoint
 const key = config.key
@@ -31,14 +28,14 @@ app.use(cors());
 
 // const uri = `mongodb+srv://admin:l1Thyrus@ucdashboard.wziw8.mongodb.net/UCDashboardMain?retryWrites=true&w=majority`;
 // const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-const timetableUrl = "https://timetable.canterbury.ac.nz/even/rest/calendar/ical/73852ab2-0288-4016-a81a-120431f81c0b";
 
-const getTimetable = new Promise ((resolve) => {
+async function getTimetable(timetableId){
+  const getTimetablePromise = new Promise ((resolve) => {
     var xhr = new XMLHttpRequest();
     let calResponse;
     let parsedCalendar;
 
-    xhr.open("GET", timetableUrl);
+    xhr.open("GET", `https://timetable.canterbury.ac.nz/even/rest/calendar/ical/${timetableId}`);
     xhr.onreadystatechange = () => { 
        if (xhr.readyState === 4) {
           calResponse = xhr.responseText;
@@ -47,30 +44,19 @@ const getTimetable = new Promise ((resolve) => {
        }};
     xhr.send();
 })
+  const cal = await getTimetablePromise;
+  return cal;
+}
+
 
 app.listen(3000, () => {
-    getTimetable.then((cal) =>{
+    getTimetable('73852ab2-0288-4016-a81a-120431f81c0b').then((cal) =>{
         console.log(cal);
     })
-
-//     readDatabase()
-//     .then(() => {
-//         readContainer()
-//     .then(() => {
-//         queryContainer()
-//     })
-//      .then(() => {
-//         exit(`Completed successfully`)
-//     })
-// })
-//     .catch(error => {
-//         exit(`Completed with error ${JSON.stringify(error)}`)
-//     })
-
 });
 
-app.get('/usertimetable', (req, res) =>{
-    getTimetable.then(cal => res.json(cal)).catch(err => res.status(500).json(err))
+app.post('/usertimetable', (req, res) =>{
+    getTimetable(req.body.timetableId).then(cal => res.json(cal)).catch(err => res.status(500).json(err))
 })
 
 app.post('/queryuserdata' , (req, res) => {
@@ -100,50 +86,6 @@ app.post('/updateuser', (req, res) => {
     res.status(500).json(err)
   })
 })
-
-
-/**
- * Create the database if it does not exist
- */
-async function createDatabase() {
-  const { database } = await client.databases.createIfNotExists({
-    id: databaseId
-  })
-  console.log(`Created database:\n${database.id}\n`)
-}
-
-/**
- * Read the database definition
- */
-async function readDatabase() {
-  const { resource: databaseDefinition } = await client
-    .database(databaseId)
-    .read()
-  console.log(`Reading database:\n${databaseDefinition.id}\n`)
-}
-
-/**
- * Create the container if it does not exist
- */
-async function createContainer() {
-  const { container } = await client
-    .database(databaseId)
-    .containers.createIfNotExists(
-      { id: containerId, partitionKey }
-    )
-  console.log(`Created container:\n${config.container.id}\n`)
-}
-
-/**
- * Read the container definition
- */
-async function readContainer() {
-  const { resource: containerDefinition } = await client
-    .database(databaseId)
-    .container(containerId)
-    .read()
-  console.log(`Reading container:\n${containerDefinition.id}\n`)
-}
 
 /**
  * Scale a container

@@ -3,7 +3,7 @@ import Timetable from "../TimeTable/TimeTable";
 import './home.css';
 import EmailInbox from "../EmailInbox/EmailInbox";
 import { useMsal } from "@azure/msal-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Button from '@mui/material/Button';
 
 const handleLogOut = (instance, accounts, navigate) => {
@@ -14,19 +14,12 @@ const handleLogOut = (instance, accounts, navigate) => {
     navigate('/');
 }
 
-const LogOutButton = () =>{
-    const { instance, accounts } = useMsal();
-    const navigate = useNavigate();
-    
-    return(
-        <Button variant="contained" onClick={() => handleLogOut(instance, accounts, navigate)}>LogOut</Button>
-    )
-}
-
 function Home(){
     const [tenantId, setTenantId] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    const {accounts} = useMsal();
+    const {instance, accounts} = useMsal();
+    const navigate = useNavigate();
+    const {timetableId} = useParams();
 
     useEffect(() => {
         const asyncSetTenantId = async () =>{
@@ -39,20 +32,22 @@ function Home(){
 
     while(isLoading){
         return (
-                <div>
-                    <h1>Loading! :3</h1>
-                </div>
+            <div>
+                <h1>Loading! :3</h1>
+            </div>
         )
     }
 
     return (
         <div className="main-content-wrapper">
             <div className="header-wrapper">
-                <h1>header</h1>
-                <LogOutButton/>
+                <h1>UC Timetable</h1>
+                <div className='logout-button-wrapper'>
+                   <Button variant="contained" size="large" onClick={() => handleLogOut(instance, accounts, navigate)}>LogOut</Button>
+                </div>
             </div>
             <div className="body-wrapper">
-                <Timetable tenantId={tenantId}/>
+                <Timetable timetableId={timetableId} tenantId={tenantId}/>
                 <EmailInbox/>
             </div>
         </div>

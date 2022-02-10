@@ -8,11 +8,21 @@
   grid-template-rows: auto auto;
   text-align: center;
   align-content: center;
+  /* margin: 1%; */
 }
 
 .header-wrapper {
   display:flex;
   justify-content:space-between;
-  margin: 1%;
+  padding: 0.5%;
+  background-color: lightgrey;
+  flex-grow: 1;
+  margin: 0;
 }
+
+.logout-button-wrapper {
+  display:flex;
+  align-items: center;
+}
+
 
