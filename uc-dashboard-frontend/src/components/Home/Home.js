@@ -5,6 +5,7 @@ import EmailInbox from "../EmailInbox/EmailInbox";
 import { useMsal } from "@azure/msal-react";
 import { useNavigate, useParams } from "react-router-dom";
 import Button from '@mui/material/Button';
+import crest from '../../img/uc-crest.png';
 
 const handleLogOut = (instance, accounts, navigate) => {
     instance.logoutPopup({
@@ -41,6 +42,9 @@ function Home(){
     return (
         <div className="main-content-wrapper">
             <div className="header-wrapper">
+                {/* <div className='crest-wrapper'>
+                 <img src={crest} alt='University Of Canterbury Crest' height='50%'></img>
+                </div> */}
                 <h1>UC Timetable</h1>
                 <div className='logout-button-wrapper'>
                    <Button variant="contained" size="large" onClick={() => handleLogOut(instance, accounts, navigate)}>LogOut</Button>

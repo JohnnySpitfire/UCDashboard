@@ -222,9 +222,10 @@ class Timetable extends React.Component{
             this.setState({calendarColors: userCalendarColors, timetableId: timetableIdSlice});
           })
         } else if(statusCode === 200){
-          console.log(userCalendarData);
           this.getTimetable(false, userCalendarData.timetableId, userCalendarData.calendarColors);
           this.setState({calendarColors: userCalendarData.calendarColors, timetableId: userCalendarData.timetableId});
+        } else {
+          throw new Error('Invalid status code');
         }
       })
     }

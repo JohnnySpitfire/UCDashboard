@@ -9,6 +9,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import crest from '../../img/uc-crest.png';
+
 
 
 async function handleLogin(instance){
@@ -79,6 +81,9 @@ function SignIn() {
     return(
         <div className="sign-in-wrapper">
             <div className="sign-in-content">
+                <div className='crest-wrapper'>
+                    {/* <img src={crest} alt='University Of Canterbury Crest'></img> */}
+                </div>
                 <h2>Welcome To the UC Dashboard</h2>
                 {isNewUser? <Button disable variant="contained">Sign in With Microsoft</Button>:
                             <Button variant="contained" onClick={() => {onLoginButtonClick();}}>Sign in With Microsoft</Button>}

@@ -24,11 +24,6 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-//const testJSON = {name:"emily", age:18, interests:[{name:"coding", years:5},{name:"videogames", years: 10}]}
-
-// const uri = `mongodb+srv://admin:l1Thyrus@ucdashboard.wziw8.mongodb.net/UCDashboardMain?retryWrites=true&w=majority`;
-// const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-
 async function getTimetable(timetableId){
   const getTimetablePromise = new Promise ((resolve) => {
     var xhr = new XMLHttpRequest();
@@ -86,47 +81,6 @@ app.post('/updateuser', (req, res) => {
     res.status(500).json(err)
   })
 })
-
-/**
- * Scale a container
- * You can scale the throughput (RU/s) of your container up and down to meet the needs of the workload. Learn more: https://aka.ms/cosmos-request-units
- */
-async function scaleContainer() {
-  const { resource: containerDefinition } = await client
-    .database(databaseId)
-    .container(containerId)
-    .read();
-  
-  try
-  {
-      const {resources: offers} = await client.offers.readAll().fetchAll();
-  
-      const newRups = 500;
-      for (var offer of offers) {
-        if (containerDefinition._rid !== offer.offerResourceId)
-        {
-            continue;
-        }
-        offer.content.offerThroughput = newRups;
-        const offerToReplace = client.offer(offer.id);
-        await offerToReplace.replace(offer);
-        console.log(`Updated offer to ${newRups} RU/s\n`);
-        break;
-      }
-  }
-  catch(err)
-  {
-      if (err.code == 400)
-      {
-          console.log(`Cannot read container throuthput.\n`);
-          console.log(err.body.message);
-      }
-      else 
-      {
-          throw err;
-      }
-  }
-}
 
 /**
  * Create family item if it does not exist
